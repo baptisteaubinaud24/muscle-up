@@ -9,7 +9,10 @@
      - pied(frag)           : ajoute les boutons de bas d'écran (Terminer, Enregistrer…)
    Retourne { rendre } pour forcer un re-rendu. */
 
-import { bibliothequeExercices, tonnage, totalReps, kgParRep, aujourdhui } from './db.js';
+import {
+  listeBibliotheque, creerExercice, rattacherType, cleExercice, nomPropre,
+  tonnage, totalReps, kgParRep, aujourdhui,
+} from './db.js';
 
 export function monterEditeur(container, seance, options = {}) {
   const { modeEdition = false, onChange = () => {}, pied = () => {} } = options;
@@ -283,9 +286,12 @@ export function monterEditeur(container, seance, options = {}) {
   }
 
   /* ---------- Bibliothèque d'exercices ---------- */
+  /* Exercices du type de la séance en premier, puis les autres.
+     Si le nom saisi n'existe pas : « Créer un exercice » l'ajoute à la séance ET à la bibliothèque. */
 
   async function ouvrirChoixExercice() {
-    const biblio = await bibliothequeExercices();
+    const biblio = await listeBibliotheque();
+    const dansSeance = new Set(seance.exercices.map((e) => cleExercice(e.nom)));
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
 
@@ -301,7 +307,8 @@ export function monterEditeur(container, seance, options = {}) {
     const recherche = document.createElement('input');
     recherche.type = 'text';
     recherche.className = 'recherche-input';
-    recherche.placeholder = 'Rechercher ou saisir un nouveau nom…';
+    recherche.placeholder = 'Rechercher dans la bibliothèque…';
+    recherche.setAttribute('aria-label', 'Rechercher un exercice');
     sheet.appendChild(recherche);
 
     const liste = document.createElement('div');
@@ -319,31 +326,70 @@ export function monterEditeur(container, seance, options = {}) {
     document.body.appendChild(overlay);
     recherche.focus();
 
+    const item = (exo) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'biblio-item';
+      const nom = document.createElement('span');
+      nom.textContent = exo.nom;
+      b.appendChild(nom);
+      if (dansSeance.has(exo.cle)) {
+        const note = document.createElement('span');
+        note.className = 'biblio-note';
+        note.textContent = 'déjà dans la séance';
+        b.appendChild(note);
+      }
+      b.onclick = async () => {
+        await rattacherType(exo.nom, seance.type).catch(() => {});
+        ajouterExercice(exo.nom, overlay);
+      };
+      return b;
+    };
+
+    const titreGroupe = (texte) => {
+      const h = document.createElement('p');
+      h.className = 'biblio-groupe';
+      h.textContent = texte;
+      return h;
+    };
+
     function rendreListe() {
-      const q = recherche.value.trim().toLowerCase();
+      const saisie = recherche.value.trim();
+      const q = cleExercice(saisie);
       liste.replaceChildren();
-      const resultats = q ? biblio.filter((n) => n.toLowerCase().includes(q)) : biblio;
+      const resultats = q ? biblio.filter((e) => e.cle.includes(q)) : biblio;
+      const duType = resultats.filter((e) => e.types.includes(seance.type));
+      const autres = resultats.filter((e) => !e.types.includes(seance.type));
 
-      resultats.forEach((nom) => {
-        const b = document.createElement('button');
-        b.className = 'biblio-item';
-        b.textContent = nom;
-        b.onclick = () => ajouterExercice(nom, overlay);
-        liste.appendChild(b);
-      });
+      if (duType.length) {
+        liste.appendChild(titreGroupe(seance.type));
+        duType.forEach((e) => liste.appendChild(item(e)));
+      }
+      if (autres.length) {
+        liste.appendChild(titreGroupe(duType.length ? 'Autres exercices' : 'Bibliothèque'));
+        autres.forEach((e) => liste.appendChild(item(e)));
+      }
 
-      if (q && !biblio.some((n) => n.toLowerCase() === q)) {
+      if (q && !biblio.some((e) => e.cle === q)) {
         const creer = document.createElement('button');
+        creer.type = 'button';
         creer.className = 'biblio-item biblio-nouveau';
-        creer.textContent = `+ Créer « ${recherche.value.trim()} »`;
-        creer.onclick = () => ajouterExercice(recherche.value.trim(), overlay);
+        creer.textContent = `+ Créer un exercice « ${nomPropre(saisie)} »`;
+        creer.onclick = async () => {
+          try {
+            const exo = await creerExercice(saisie, [seance.type]);
+            ajouterExercice(exo.nom, overlay);
+          } catch (e) {
+            creer.textContent = e.message;
+          }
+        };
         liste.appendChild(creer);
       }
 
       if (!liste.childElementCount) {
         const p = document.createElement('p');
         p.className = 'info';
-        p.textContent = q ? 'Aucun exercice connu — crée-le ci-dessous.' : 'Bibliothèque vide — saisis un nom ci-dessus.';
+        p.textContent = 'Bibliothèque vide — saisis le nom d\'un exercice ci-dessus pour le créer.';
         liste.appendChild(p);
       }
     }
@@ -354,7 +400,7 @@ export function monterEditeur(container, seance, options = {}) {
 
   function ajouterExercice(nom, overlay) {
     seance.exercices.push({
-      nom: nom.charAt(0).toUpperCase() + nom.slice(1),
+      nom: nomPropre(nom),
       sets: [{ reps: null, charge: null, confirme: modeEdition }],
     });
     changer();

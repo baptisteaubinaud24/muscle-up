@@ -12,6 +12,7 @@
 import {
   TYPES, ajouterSeances, toutesLesSeances, sauverSeance,
   listeSeancesTerminees, lireReglage, ecrireReglage, aujourdhui,
+  ajouterExercicesManquants, exercicesPourExport, cleExercice, listeBibliotheque,
 } from './db.js';
 import { demanderConfirmation } from './editeur.js';
 
@@ -109,7 +110,13 @@ export async function analyserImport(texte) {
     nouvelles.push(s);
   }
   nouvelles.sort((a, b) => a.date.localeCompare(b.date));
-  return { nouvelles, doublons, invalides };
+  // Bibliothèque (fichiers de sauvegarde) : exercices absents de la table actuelle
+  const connus = new Set((await listeBibliotheque()).map((e) => e.cle));
+  const exercices = (Array.isArray(json?.exercices) ? json.exercices : [])
+    .filter((e) => e && typeof e.nom === 'string')
+    .map((e) => ({ nom: nomFusionne(e.nom.trim().replace(/\s+/g, ' ')), types: e.types }))
+    .filter((e) => { const k = cleExercice(e.nom); if (!k || connus.has(k)) return false; connus.add(k); return true; });
+  return { nouvelles, doublons, invalides, exercices };
 }
 
 /* Parcours complet : sélection du fichier, aperçu, confirmation, écriture.
@@ -117,24 +124,37 @@ export async function analyserImport(texte) {
 export async function importerDepuisFichier() {
   const fichier = await choisirFichier();
   if (!fichier) return 0;
-  const { nouvelles, doublons, invalides } = await analyserImport(await fichier.text());
+  const { nouvelles, doublons, invalides, exercices } = await analyserImport(await fichier.text());
 
   const ignorees = [];
   if (doublons) ignorees.push(`${doublons} déjà présente${doublons > 1 ? 's' : ''}`);
   if (invalides) ignorees.push(`${invalides} vide${invalides > 1 ? 's' : ''} ou invalide${invalides > 1 ? 's' : ''}`);
   const suffixe = ignorees.length ? ` Ignorées : ${ignorees.join(', ')}.` : '';
 
-  if (!nouvelles.length) throw new Error(`Rien à importer.${suffixe}`);
+  const txtExos = exercices.length ? ` + ${exercices.length} exercice${exercices.length > 1 ? 's' : ''} de bibliothèque.` : '';
+  if (!nouvelles.length && !exercices.length) throw new Error(`Rien à importer.${suffixe}`);
+  if (!nouvelles.length) {
+    const okExos = await demanderConfirmation(
+      `Importer ${exercices.length} exercice${exercices.length > 1 ? 's' : ''}`,
+      `Aucune nouvelle séance.${suffixe} Exercices ajoutés à la bibliothèque : ${exercices.map((e) => e.nom).join(', ')}.`,
+      'Importer',
+    );
+    if (!okExos) return 0;
+    await ajouterExercicesManquants(exercices);
+    document.dispatchEvent(new CustomEvent('donnees-changees'));
+    return 0;
+  }
 
   const parType = TYPES.map((t) => [t, nouvelles.filter((s) => s.type === t).length])
     .filter(([, n]) => n > 0).map(([t, n]) => `${t} ${n}`).join(', ');
   const ok = await demanderConfirmation(
     `Importer ${nouvelles.length} séance${nouvelles.length > 1 ? 's' : ''}`,
-    `Du ${fmtDate(nouvelles[0].date)} au ${fmtDate(nouvelles[nouvelles.length - 1].date)} — ${parType}.${suffixe}`,
+    `Du ${fmtDate(nouvelles[0].date)} au ${fmtDate(nouvelles[nouvelles.length - 1].date)} — ${parType}.${suffixe}${txtExos}`,
     'Importer',
   );
   if (!ok) return 0;
   await ajouterSeances(nouvelles);
+  if (exercices.length) await ajouterExercicesManquants(exercices);
   return nouvelles.length;
 }
 
@@ -158,6 +178,7 @@ async function construireFichier() {
     source: 'sauvegarde',
     genere_le: aujourdhui(),
     seances,
+    exercices: await exercicesPourExport(), // bibliothèque (noms + types)
   };
   const nom = `sauvegarde-suivi-muscu-${aujourdhui()}.json`;
   return { fichier: new File([JSON.stringify(contenu, null, 1)], nom, { type: 'application/json' }), nb: seances.length };
@@ -168,7 +189,9 @@ export async function preparerSauvegarde() {
   return fichierPrepare.nb;
 }
 
-document.addEventListener('donnees-changees', () => { fichierPrepare = null; preparerSauvegarde().catch(() => {}); });
+const repreparer = () => { fichierPrepare = null; preparerSauvegarde().catch(() => {}); };
+document.addEventListener('donnees-changees', repreparer);
+document.addEventListener('bibliotheque-changee', repreparer);
 
 function telecharger(fichier) {
   const url = URL.createObjectURL(fichier);

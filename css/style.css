@@ -231,7 +231,7 @@ button {
   right: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   padding: var(--space-2) var(--space-2) calc(var(--space-2) + var(--safe-bottom));
   background: color-mix(in srgb, var(--color-surface) 92%, transparent);
   backdrop-filter: blur(16px);
@@ -974,4 +974,89 @@ button {
 .rappel-fermer {
   width: 36px;
   height: 36px;
+}
+
+/* ==================== Bibliothèque d'exercices ==================== */
+.biblio {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.biblio-nom {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.biblio-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.biblio-type {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.biblio-type-vide {
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+}
+
+.biblio-choix-types {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2);
+}
+
+.biblio-choix {
+  min-height: 44px;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.biblio-choix[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.biblio-erreur:empty { display: none; }
+.biblio-erreur {
+  color: #c8432b;
+  font-size: var(--text-sm);
+}
+
+/* Feuille « Ajouter un exercice » : groupes et note */
+.biblio-groupe {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.biblio-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.biblio-note {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }

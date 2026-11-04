@@ -3,10 +3,12 @@
 import {
   getSeanceEnCours,
   listeSeancesTerminees,
+  synchroniserBibliotheque,
 } from './db.js';
 import { initSeance } from './seance.js';
 import { initEvolution } from './evolution.js';
 import { initHistorique } from './historique.js';
+import { initBibliotheque } from './bibliotheque.js';
 import {
   appliquerFusionsNoms,
   etatRappel,
@@ -71,6 +73,7 @@ function montrer(vue) {
   if (vue === 'evolution') sur(initEvolution);
   if (vue === 'historique') sur(initHistorique);
   if (vue === 'seance') sur(initSeance);
+  if (vue === 'bibliotheque') sur(initBibliotheque);
 }
 
 tabs.forEach((t) => t.addEventListener('click', () => montrer(t.dataset.tab)));
@@ -78,7 +81,7 @@ tabs.forEach((t) => t.addEventListener('click', () => montrer(t.dataset.tab)));
 /* Gestion du hash (#seance, #evolution, #historique) */
 function lireHash() {
   const h = location.hash.replace('#', '');
-  return ['seance', 'evolution', 'historique'].includes(h) ? h : 'seance';
+  return ['seance', 'evolution', 'historique', 'bibliotheque'].includes(h) ? h : 'seance';
 }
 window.addEventListener('hashchange', () => montrer(lireHash()));
 
@@ -101,9 +104,14 @@ async function majEtatsVides() {
 montrer(lireHash());
 majEtatsVides();
 /* Fusion des noms d'exercices en double (historique importé avant le 04/11/2026) */
+/* puis remplissage de la bibliothèque avec les noms de l'historique */
 appliquerFusionsNoms()
-  .then((n) => { if (n > 0) montrer(lireHash()); })
-  .catch((e) => console.warn('Fusion des noms impossible :', e));
+  .catch((e) => { console.warn('Fusion des noms impossible :', e); return 0; })
+  .then(async (n) => {
+    const ajoutes = await synchroniserBibliotheque().catch((e) => { console.warn('Bibliothèque :', e); return 0; });
+    if (n > 0 || (ajoutes > 0 && lireHash() === 'bibliotheque')) montrer(lireHash());
+  });
+document.addEventListener('donnees-changees', () => { synchroniserBibliotheque().catch(() => {}); });
 
 /* ---------- Rappel de sauvegarde (jalon 6) ---------- */
 /* Masqué pendant une séance en cours (pour ne pas gêner la saisie) et,

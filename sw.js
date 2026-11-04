@@ -1,7 +1,7 @@
 /* Service worker — Suivi Muscu
    Cache-first : après la première visite, l'app fonctionne 100 % hors ligne. */
 
-const CACHE_NAME = 'suivi-muscu-v7';
+const CACHE_NAME = 'suivi-muscu-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -14,6 +14,7 @@ const ASSETS = [
   './js/historique.js',
   './js/editeur.js',
   './js/import-export.js',
+  './js/bibliotheque.js',
   './js/vendor/chart.umd.min.js',
   './js/vendor/dexie.min.js',
   './icons/icon-180.png',
