@@ -7,6 +7,7 @@ import {
 import { initSeance } from './seance.js';
 import { initEvolution } from './evolution.js';
 import { initHistorique } from './historique.js';
+import { appliquerFusionsNoms } from './import-export.js';
 
 /* ---------- Service worker ---------- */
 /* Certains environnements (aperçus sandboxés) interdisent l'accès à ces API :
@@ -93,6 +94,10 @@ async function majEtatsVides() {
 /* ---------- Démarrage ---------- */
 montrer(lireHash());
 majEtatsVides();
+/* Fusion des noms d'exercices en double (historique importé avant le 04/11/2026) */
+appliquerFusionsNoms()
+  .then((n) => { if (n > 0) montrer(lireHash()); })
+  .catch((e) => console.warn('Fusion des noms impossible :', e));
 
 /* Une séance créée / terminée modifie les états vides des autres écrans */
 document.addEventListener('donnees-changees', () => majEtatsVides());

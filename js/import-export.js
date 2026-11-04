@@ -8,8 +8,38 @@
    - un set sans reps est ignoré, un exercice sans set aussi, une séance sans rep aussi ;
    - doublons : une séance dont la date ET le type existent déjà est ignorée (jamais écrasée). */
 
-import { TYPES, ajouterSeances, toutesLesSeances } from './db.js';
+import { TYPES, ajouterSeances, toutesLesSeances, sauverSeance } from './db.js';
 import { demanderConfirmation } from './editeur.js';
+
+/* Noms d'exercices en double dans Sport.xlsx, fusionnés (décision du 04/11/2026).
+   « Reverse fly » reste un exercice distinct. */
+const FUSIONS_NOMS = {
+  'Curl biceps poulie (bilatéral)': 'Curl biceps poulie',
+  'Overhead triceps extension (bilatéral)': 'Overhead triceps extension',
+  'Pecs fly (machine)': 'Pecs fly',
+  'DC semi incliné haltères (ou guidé)': 'DC semi incliné haltères',
+  'Dips': 'Dips press',
+  'Développe militaire machine': 'Développe militaire',
+  'Oiseaux Haltère épaules': 'Oiseau haltères',
+  'Triceps poulie': 'Extension triceps poulie',
+};
+const nomFusionne = (nom) => FUSIONS_NOMS[nom] || nom;
+
+/* Renomme les variantes dans les séances déjà enregistrées (cas d'un import fait
+   avant la fusion). Idempotent : ne touche que les séances concernées.
+   Renvoie le nombre de séances modifiées. */
+export async function appliquerFusionsNoms() {
+  let n = 0;
+  for (const s of await toutesLesSeances()) {
+    let modifie = false;
+    for (const e of s.exercices || []) {
+      const cible = nomFusionne(e.nom);
+      if (cible !== e.nom) { e.nom = cible; modifie = true; }
+    }
+    if (modifie) { await sauverSeance(s); n += 1; }
+  }
+  return n;
+}
 
 const fmtDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -48,7 +78,7 @@ function normaliser(s) {
       if (!(reps > 0) || !(charge >= 0)) continue;
       sets.push({ reps, charge, confirme: true });
     }
-    if (sets.length) exercices.push({ nom, sets });
+    if (sets.length) exercices.push({ nom: nomFusionne(nom), sets });
   }
   if (!exercices.length) return null;
   return { date: s.date, type: s.type, statut: 'terminee', exercices };
