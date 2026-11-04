@@ -14,7 +14,12 @@ import {
   TYPES,
 } from './db.js';
 import { monterEditeur, demanderConfirmation } from './editeur.js';
-import { importerDepuisFichier } from './import-export.js';
+import {
+  importerDepuisFichier,
+  exporterSauvegarde,
+  derniereSauvegarde,
+  joursDepuis,
+} from './import-export.js';
 
 let filtre = 'Tous';
 /* Édition en cours : { copie, modifie }. Conservée si on change d'onglet. */
@@ -65,7 +70,7 @@ async function rendreListe() {
     empty.hidden = false;
     const w = document.createElement('div');
     w.className = 'view-inner histo';
-    w.appendChild(boutonImport());
+    w.appendChild(await blocSauvegarde(false));
     content.replaceChildren(w);
     return;
   }
@@ -107,8 +112,56 @@ async function rendreListe() {
     groupe.appendChild(ligneSeance(s));
   }
 
-  wrap.appendChild(boutonImport());
+  wrap.appendChild(await blocSauvegarde(true));
   content.replaceChildren(wrap);
+}
+
+/* Bloc « Sauvegarde » en bas de l'historique : état, export, import / restauration. */
+async function blocSauvegarde(avecSeances) {
+  const bloc = document.createElement('section');
+  bloc.className = 'histo-sauvegarde';
+  bloc.setAttribute('aria-label', 'Sauvegarde');
+
+  const h = document.createElement('h3');
+  h.className = 'histo-mois';
+  h.textContent = 'Sauvegarde';
+  bloc.appendChild(h);
+
+  const etat = document.createElement('p');
+  etat.className = 'histo-sauvegarde-etat';
+  const d = await derniereSauvegarde();
+  if (d) {
+    const j = joursDepuis(d);
+    const quand = j === 0 ? "aujourd'hui" : j === 1 ? 'hier' : `il y a ${j} jours`;
+    etat.textContent = `Dernière sauvegarde : ${quand} (${new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR')}).`;
+  } else {
+    etat.textContent = 'Aucune sauvegarde pour l\'instant.';
+  }
+  bloc.appendChild(etat);
+
+  if (avecSeances) {
+    const exp = document.createElement('button');
+    exp.type = 'button';
+    exp.className = 'btn-primary histo-export';
+    exp.textContent = 'Exporter une sauvegarde';
+    exp.onclick = async () => {
+      try {
+        const n = await exporterSauvegarde();
+        if (n) toast(`Sauvegarde de ${n} séance${n > 1 ? 's' : ''} exportée`);
+      } catch (e) {
+        toast(e.message || 'Export impossible');
+      }
+    };
+    bloc.appendChild(exp);
+  }
+
+  bloc.appendChild(boutonImport());
+
+  const aide = document.createElement('p');
+  aide.className = 'histo-sauvegarde-aide';
+  aide.textContent = 'Le fichier exporté contient toutes tes séances terminées. Enregistre-le dans Fichiers (iCloud Drive)\u00a0; pour restaurer, utilise «\u00a0Importer\u00a0»\u00a0: les séances déjà présentes sont ignorées.';
+  bloc.appendChild(aide);
+  return bloc;
 }
 
 function boutonImport() {

@@ -1,7 +1,7 @@
 /* Service worker — Suivi Muscu
    Cache-first : après la première visite, l'app fonctionne 100 % hors ligne. */
 
-const CACHE_NAME = 'suivi-muscu-v6';
+const CACHE_NAME = 'suivi-muscu-v7';
 const ASSETS = [
   './',
   './index.html',
@@ -24,7 +24,9 @@ const ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(ASSETS))
+      // cache: 'reload' : on contourne le cache HTTP du navigateur pour ne jamais
+      // installer une nouvelle version avec d'anciens fichiers.
+      .then((cache) => cache.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });

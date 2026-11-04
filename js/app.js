@@ -7,7 +7,13 @@ import {
 import { initSeance } from './seance.js';
 import { initEvolution } from './evolution.js';
 import { initHistorique } from './historique.js';
-import { appliquerFusionsNoms } from './import-export.js';
+import {
+  appliquerFusionsNoms,
+  etatRappel,
+  exporterSauvegarde,
+  preparerSauvegarde,
+  demanderPersistance,
+} from './import-export.js';
 
 /* ---------- Service worker ---------- */
 /* Certains environnements (aperçus sandboxés) interdisent l'accès à ces API :
@@ -98,6 +104,56 @@ majEtatsVides();
 appliquerFusionsNoms()
   .then((n) => { if (n > 0) montrer(lireHash()); })
   .catch((e) => console.warn('Fusion des noms impossible :', e));
+
+/* ---------- Rappel de sauvegarde (jalon 6) ---------- */
+/* Masqué pendant une séance en cours (pour ne pas gêner la saisie) et,
+   après « ✕ », jusqu'au prochain lancement de l'app. */
+let rappelMasque = false;
+
+async function majRappel() {
+  const bandeau = document.getElementById('rappel-sauvegarde');
+  try {
+    const enCours = await getSeanceEnCours();
+    const texte = rappelMasque || enCours ? null : await etatRappel();
+    if (texte) document.getElementById('rappel-texte').textContent = texte;
+    bandeau.hidden = !texte;
+  } catch {
+    bandeau.hidden = true;
+  }
+}
+
+document.getElementById('rappel-fermer').addEventListener('click', () => {
+  rappelMasque = true;
+  majRappel();
+});
+
+document.getElementById('rappel-sauver').addEventListener('click', async () => {
+  try {
+    const n = await exporterSauvegarde();
+    if (n) toastGlobal(`Sauvegarde de ${n} séance${n > 1 ? 's' : ''} exportée`);
+  } catch (e) {
+    toastGlobal(e.message || 'Export impossible');
+  }
+});
+
+function toastGlobal(message) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.setAttribute('role', 'status');
+  t.textContent = message;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2400);
+}
+
+document.addEventListener('sauvegarde-faite', () => {
+  majRappel();
+  if (location.hash.replace('#', '') === 'historique') montrer('historique');
+});
+document.addEventListener('donnees-changees', () => majRappel());
+
+majRappel();
+preparerSauvegarde().catch(() => {});
+demanderPersistance();
 
 /* Une séance créée / terminée modifie les états vides des autres écrans */
 document.addEventListener('donnees-changees', () => majEtatsVides());

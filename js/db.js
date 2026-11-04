@@ -9,6 +9,22 @@ db.version(1).stores({
   seances: '++id, date, type, statut',
 });
 
+// v2 (jalon 6) : ajout d'une table de réglages clé/valeur (date de dernière sauvegarde).
+// La table séances est inchangée : aucune migration de données.
+db.version(2).stores({
+  seances: '++id, date, type, statut',
+  reglages: 'cle',
+});
+
+export async function lireReglage(cle) {
+  const r = await db.reglages.get(cle);
+  return r ? r.valeur : undefined;
+}
+
+export async function ecrireReglage(cle, valeur) {
+  return db.reglages.put({ cle, valeur });
+}
+
 /* ---------- Métriques ---------- */
 
 export function tonnage(seance) {

@@ -1,6 +1,7 @@
-/* Import de séances depuis un fichier JSON — jalon 5.
-   Sert à importer l'historique converti depuis Sport.xlsx (historique_sport_xlsx.json).
-   Le jalon 6 ajoutera l'export de sauvegarde (même format, donc réimportable ici).
+/* Import / export de séances en JSON.
+   - Jalon 5 : import de l'historique converti depuis Sport.xlsx (historique_sport_xlsx.json).
+   - Jalon 6 : export de sauvegarde (même format, donc réimportable ici pour restaurer),
+     rappel au-delà de 30 jours sans sauvegarde, demande de stockage persistant.
 
    Règles :
    - format attendu : { format: 'suivi-muscu', version: 1, seances: [...] } ;
@@ -8,7 +9,10 @@
    - un set sans reps est ignoré, un exercice sans set aussi, une séance sans rep aussi ;
    - doublons : une séance dont la date ET le type existent déjà est ignorée (jamais écrasée). */
 
-import { TYPES, ajouterSeances, toutesLesSeances, sauverSeance } from './db.js';
+import {
+  TYPES, ajouterSeances, toutesLesSeances, sauverSeance,
+  listeSeancesTerminees, lireReglage, ecrireReglage, aujourdhui,
+} from './db.js';
 import { demanderConfirmation } from './editeur.js';
 
 /* Noms d'exercices en double dans Sport.xlsx, fusionnés (décision du 04/11/2026).
@@ -132,4 +136,109 @@ export async function importerDepuisFichier() {
   if (!ok) return 0;
   await ajouterSeances(nouvelles);
   return nouvelles.length;
+}
+
+/* ---------- Export de sauvegarde (jalon 6) ---------- */
+
+const CLE_SAUVEGARDE = 'derniere_sauvegarde';
+export const DELAI_RAPPEL_JOURS = 30;
+
+/* Le fichier est préparé à l'avance : sur iPhone, la feuille de partage doit s'ouvrir
+   immédiatement après le tap, sans attente de lecture en base entre les deux. */
+let fichierPrepare = null;
+
+async function construireFichier() {
+  const seances = (await listeSeancesTerminees())
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date) || a.type.localeCompare(b.type))
+    .map(({ date, type, statut, exercices }) => ({ date, type, statut, exercices }));
+  const contenu = {
+    format: 'suivi-muscu',
+    version: 1,
+    source: 'sauvegarde',
+    genere_le: aujourdhui(),
+    seances,
+  };
+  const nom = `sauvegarde-suivi-muscu-${aujourdhui()}.json`;
+  return { fichier: new File([JSON.stringify(contenu, null, 1)], nom, { type: 'application/json' }), nb: seances.length };
+}
+
+export async function preparerSauvegarde() {
+  fichierPrepare = await construireFichier();
+  return fichierPrepare.nb;
+}
+
+document.addEventListener('donnees-changees', () => { fichierPrepare = null; preparerSauvegarde().catch(() => {}); });
+
+function telecharger(fichier) {
+  const url = URL.createObjectURL(fichier);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fichier.name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/* Ouvre la feuille de partage iOS (« Enregistrer dans Fichiers », AirDrop, mail…)
+   ou, à défaut, télécharge le fichier. Renvoie le nombre de séances exportées,
+   0 si l'utilisateur a annulé. */
+export async function exporterSauvegarde() {
+  const { fichier, nb } = fichierPrepare || await construireFichier();
+  if (nb === 0) throw new Error('Aucune séance à sauvegarder.');
+  let partage = false;
+  try {
+    partage = Boolean(navigator.canShare && navigator.canShare({ files: [fichier] }));
+  } catch { partage = false; }
+  if (partage) {
+    try {
+      await navigator.share({ files: [fichier], title: fichier.name });
+    } catch (e) {
+      if (e && e.name === 'AbortError') return 0;
+      telecharger(fichier); // partage refusé par le navigateur : repli sur le téléchargement
+    }
+  } else {
+    telecharger(fichier);
+  }
+  await ecrireReglage(CLE_SAUVEGARDE, aujourdhui());
+  document.dispatchEvent(new CustomEvent('sauvegarde-faite'));
+  return nb;
+}
+
+/* ---------- Rappel 30 jours ---------- */
+
+export async function derniereSauvegarde() {
+  return lireReglage(CLE_SAUVEGARDE);
+}
+
+export function joursDepuis(iso) {
+  const a = new Date(`${iso}T12:00:00`);
+  const b = new Date(`${aujourdhui()}T12:00:00`);
+  return Math.round((b - a) / 86400000);
+}
+
+/* null si pas de rappel, sinon le texte du rappel. */
+export async function etatRappel() {
+  const nb = (await listeSeancesTerminees()).length;
+  if (nb === 0) return null;
+  const derniere = await derniereSauvegarde();
+  if (!derniere) return `Aucune sauvegarde de tes ${nb} séance${nb > 1 ? 's' : ''} pour l'instant.`;
+  const j = joursDepuis(derniere);
+  if (j <= DELAI_RAPPEL_JOURS) return null;
+  return `Dernière sauvegarde il y a ${j} jours.`;
+}
+
+/* ---------- Stockage persistant ---------- */
+
+/* Demande à iOS de ne pas purger les données de l'app. Sans effet visible ;
+   l'app installée sur l'écran d'accueil est en général déjà protégée. */
+export async function demanderPersistance() {
+  try {
+    if (navigator.storage && navigator.storage.persist) {
+      if (await navigator.storage.persisted()) return true;
+      return await navigator.storage.persist();
+    }
+  } catch { /* environnement sans accès au stockage */ }
+  return false;
 }
