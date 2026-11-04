@@ -60,6 +60,14 @@ export async function sauverSeance(seance) {
   return db.seances.put(seance);
 }
 
+export async function ajouterSeances(liste) {
+  return db.seances.bulkAdd(liste);
+}
+
+export async function toutesLesSeances() {
+  return db.seances.toArray();
+}
+
 export async function supprimerSeance(id) {
   return db.seances.delete(id);
 }

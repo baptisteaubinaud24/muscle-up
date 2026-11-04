@@ -14,6 +14,7 @@ import {
   TYPES,
 } from './db.js';
 import { monterEditeur, demanderConfirmation } from './editeur.js';
+import { importerDepuisFichier } from './import-export.js';
 
 let filtre = 'Tous';
 /* Édition en cours : { copie, modifie }. Conservée si on change d'onglet. */
@@ -62,7 +63,10 @@ async function rendreListe() {
 
   if (seances.length === 0) {
     empty.hidden = false;
-    content.replaceChildren();
+    const w = document.createElement('div');
+    w.className = 'view-inner histo';
+    w.appendChild(boutonImport());
+    content.replaceChildren(w);
     return;
   }
   empty.hidden = true;
@@ -103,7 +107,27 @@ async function rendreListe() {
     groupe.appendChild(ligneSeance(s));
   }
 
+  wrap.appendChild(boutonImport());
   content.replaceChildren(wrap);
+}
+
+function boutonImport() {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn-secondary histo-import';
+  b.textContent = 'Importer un fichier de séances';
+  b.onclick = async () => {
+    try {
+      const n = await importerDepuisFichier();
+      if (!n) return;
+      notifierDonneesChangees();
+      await rendreListe();
+      toast(`${n} séance${n > 1 ? 's' : ''} importée${n > 1 ? 's' : ''}`);
+    } catch (e) {
+      toast(e.message || 'Import impossible');
+    }
+  };
+  return b;
 }
 
 function filtres(seances) {

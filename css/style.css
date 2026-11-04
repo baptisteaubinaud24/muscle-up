@@ -909,3 +909,9 @@ button {
   animation: view-in 200ms ease;
   white-space: nowrap;
 }
+
+/* ----- Import (jalon 5) ----- */
+.histo-import {
+  width: 100%;
+  margin-top: var(--space-6);
+}
