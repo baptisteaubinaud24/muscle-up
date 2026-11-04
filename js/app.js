@@ -4,6 +4,7 @@ import {
   getSeanceEnCours,
   listeSeancesTerminees,
   synchroniserBibliotheque,
+  chargerTypes,
 } from './db.js';
 import { initSeance } from './seance.js';
 import { initEvolution } from './evolution.js';
@@ -101,6 +102,8 @@ async function majEtatsVides() {
 }
 
 /* ---------- Démarrage ---------- */
+/* La liste des types de séance est lue avant le premier affichage */
+await chargerTypes().catch((e) => console.warn('Types de séance :', e));
 montrer(lireHash());
 majEtatsVides();
 /* Fusion des noms d'exercices en double (historique importé avant le 04/11/2026) */

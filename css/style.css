@@ -1067,3 +1067,57 @@ button {
   margin-top: var(--space-1);
   font-weight: 600;
 }
+
+/* ==================== Types de séance modifiables ==================== */
+
+/* Plus de 5 boutons : la barre défile horizontalement */
+.segmente.segmente-defile {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+.segmente.segmente-defile::-webkit-scrollbar { display: none; }
+.segmente.segmente-defile button {
+  flex: 0 0 auto;
+  padding-inline: var(--space-3);
+  white-space: nowrap;
+  scroll-snap-align: center;
+}
+
+.segmente-sections { grid-template-columns: 1fr 1fr; }
+
+.type-ligne {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+}
+.type-ligne:active { background: transparent; }
+.type-ligne-corps {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  color: inherit;
+  min-height: 56px;
+}
+.type-ligne-corps:active { background: var(--color-surface-2); }
+.type-fleches {
+  display: flex;
+  gap: 2px;
+  padding-right: var(--space-2);
+}
+.type-fleche {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+.type-fleche:active:not(:disabled) { background: var(--color-surface-2); color: var(--color-text); }
+.type-fleche:disabled { opacity: 0.3; }

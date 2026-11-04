@@ -25,6 +25,16 @@ db.version(3).stores({
   exercices: '++id, &cle',
 });
 
+// v4 (types de séance modifiables) : ajout d'une table types { nom, cle, ordre }.
+// `cle` = nom normalisé, unique. Les séances gardent le nom du type en clair.
+// Tables existantes inchangées ; la table est remplie au démarrage par chargerTypes().
+db.version(4).stores({
+  seances: '++id, date, type, statut',
+  reglages: 'cle',
+  exercices: '++id, &cle',
+  types: '++id, &cle, ordre',
+});
+
 export async function lireReglage(cle) {
   const r = await db.reglages.get(cle);
   return r ? r.valeur : undefined;
@@ -232,7 +242,130 @@ export async function nbSeances() {
   return db.seances.count();
 }
 
-export const TYPES = ['Pecs', 'Dos', 'Superset Bras', 'Legs'];
+/* ---------- Types de séance ---------- */
+
+const TYPES_INITIAUX = ['Pecs', 'Dos', 'Superset Bras', 'Legs'];
+
+/* Liste des noms de types, dans l'ordre choisi. Tableau partagé par tous les écrans :
+   il est mis à jour sur place par chargerTypes() (jamais réaffecté), donc chaque module
+   qui l'importe voit toujours la liste à jour. Valeurs initiales = filet de sécurité si
+   le stockage est indisponible. */
+export const TYPES = [...TYPES_INITIAUX];
+
+function signalerTypes(detail = {}) {
+  try {
+    document.dispatchEvent(new CustomEvent('types-changes', { detail }));
+    document.dispatchEvent(new CustomEvent('bibliotheque-changee')); // sauvegarde à refaire
+  } catch { /* hors navigateur */ }
+}
+
+/* Lit la table types et met TYPES à jour. Au premier lancement, la remplit avec les
+   4 types d'origine ; ajoute aussi tout type présent dans les séances mais absent. */
+export async function chargerTypes() {
+  await db.transaction('rw', db.types, db.seances, async () => {
+    const existants = await db.types.toArray();
+    const cles = new Set(existants.map((t) => t.cle));
+    let ordre = existants.reduce((m, t) => Math.max(m, t.ordre), -1);
+    const aAjouter = [];
+    const candidat = (nom) => {
+      const n = nomPropre(nom);
+      const c = cleExercice(n);
+      if (c && !cles.has(c)) { cles.add(c); aAjouter.push({ nom: n, cle: c, ordre: ++ordre }); }
+    };
+    if (!existants.length) TYPES_INITIAUX.forEach(candidat);
+    for (const s of await db.seances.toArray()) candidat(s.type);
+    if (aAjouter.length) await db.types.bulkAdd(aAjouter);
+  });
+  const liste = await db.types.orderBy('ordre').toArray();
+  TYPES.splice(0, TYPES.length, ...liste.map((t) => t.nom));
+  return TYPES;
+}
+
+/* Types avec leur nombre de séances terminées (écran Bibliothèque). */
+export async function listeTypes() {
+  const nb = new Map();
+  for (const s of await db.seances.where('statut').equals('terminee').toArray()) nb.set(s.type, (nb.get(s.type) || 0) + 1);
+  return (await db.types.orderBy('ordre').toArray()).map((t) => ({ ...t, nb: nb.get(t.nom) || 0 }));
+}
+
+async function verifierNomType(nom, idExclu) {
+  const propre = nomPropre(nom);
+  const cle = cleExercice(propre);
+  if (!cle) throw new Error('Donne un nom au type de séance.');
+  if (propre.length > 30) throw new Error('Nom trop long (30 caractères maximum).');
+  if (cle === 'tous') throw new Error('« Tous » est réservé au filtre des écrans.');
+  const existant = await db.types.where('cle').equals(cle).first();
+  if (existant && existant.id !== idExclu) throw new Error(`Le type « ${existant.nom} » existe déjà.`);
+  return { propre, cle };
+}
+
+/* Ajoute un type en fin de liste. */
+export async function ajouterType(nom) {
+  const { propre, cle } = await verifierNomType(nom);
+  const dernier = await db.types.orderBy('ordre').last();
+  await db.types.add({ nom: propre, cle, ordre: dernier ? dernier.ordre + 1 : 0 });
+  await chargerTypes();
+  signalerTypes({ ajoute: propre });
+  return propre;
+}
+
+/* Ajoute les types absents (import), en fin de liste, dans l'ordre donné. Renvoie les ajoutés. */
+export async function ajouterTypesManquants(noms) {
+  const ajoutes = [];
+  for (const n of noms || []) {
+    const propre = nomPropre(n);
+    const cle = cleExercice(propre);
+    if (!cle || cle === 'tous' || (await db.types.where('cle').equals(cle).first())) continue;
+    const dernier = await db.types.orderBy('ordre').last();
+    await db.types.add({ nom: propre, cle, ordre: dernier ? dernier.ordre + 1 : 0 });
+    ajoutes.push(propre);
+  }
+  if (ajoutes.length) { await chargerTypes(); signalerTypes({ ajoutes }); }
+  return ajoutes;
+}
+
+/* Nom officiel d'un type à partir d'une saisie (majuscules/accents ignorés), ou null. */
+export function typeConnu(nom) {
+  const c = cleExercice(nom);
+  return TYPES.find((t) => cleExercice(t) === c) || null;
+}
+
+/* Renomme un type partout, en une seule transaction (tout ou rien) :
+   table types, séances (terminées et en cours) et types rattachés aux exercices. */
+export async function renommerType(id, nouveauNom) {
+  const type = await db.types.get(id);
+  if (!type) throw new Error('Type introuvable.');
+  const { propre, cle } = await verifierNomType(nouveauNom, id);
+  const ancien = type.nom;
+  if (propre === ancien) return { ancien, nouveau: propre, nb: 0 };
+  let nb = 0;
+  await db.transaction('rw', db.types, db.seances, db.exercices, async () => {
+    await db.types.update(id, { nom: propre, cle });
+    nb = await db.seances.where('type').equals(ancien).modify({ type: propre });
+    await db.exercices
+      .filter((e) => Array.isArray(e.types) && e.types.includes(ancien))
+      .modify((e) => { e.types = e.types.map((t) => (t === ancien ? propre : t)); });
+  });
+  await chargerTypes();
+  signalerTypes({ ancien, nouveau: propre });
+  try { document.dispatchEvent(new CustomEvent('donnees-changees')); } catch { /* hors navigateur */ }
+  return { ancien, nouveau: propre, nb };
+}
+
+/* Déplace un type d'un cran (sens = -1 vers le haut, +1 vers le bas). */
+export async function deplacerType(id, sens) {
+  await db.transaction('rw', db.types, async () => {
+    const liste = await db.types.orderBy('ordre').toArray();
+    const i = liste.findIndex((t) => t.id === id);
+    const j = i + sens;
+    if (i < 0 || j < 0 || j >= liste.length) return;
+    [liste[i], liste[j]] = [liste[j], liste[i]];
+    // Renumérotation complète : l'ordre reste propre (0, 1, 2…)
+    await Promise.all(liste.map((t, k) => db.types.update(t.id, { ordre: k })));
+  });
+  await chargerTypes();
+  signalerTypes({ deplace: id });
+}
 
 export function aujourdhui() {
   const d = new Date();

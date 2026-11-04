@@ -1,16 +1,30 @@
-/* Écran Bibliothèque d'exercices.
-   Liste des exercices (recherche + filtre par type de séance), création (nom + types),
-   modification des types d'un exercice. Le nom n'est pas modifiable ici (pas de
-   renommage ni de suppression dans cette version). */
+/* Écran Bibliothèque — deux sections, choisies par un sélecteur en haut d'écran :
+   - Exercices : liste (recherche + filtre par type de séance), création (nom + types),
+     modification des types d'un exercice (pas de renommage ni de suppression d'exercice) ;
+   - Types de séance : liste ordonnée, ajout, renommage, réordonnancement par flèches
+     (pas de suppression dans cette version, décision du 04/11/2026). */
 
 import {
   listeBibliotheque,
   creerExercice,
   modifierTypesExercice,
   TYPES,
+  listeTypes,
+  ajouterType,
+  renommerType,
+  deplacerType,
 } from './db.js';
+import { ajusterSegmente } from './editeur.js';
 
+let section = 'exercices'; // 'exercices' | 'types'
 let filtre = 'Tous';
+
+/* Un type renommé : le filtre suit le nouveau nom */
+document.addEventListener('types-changes', (ev) => {
+  const d = ev.detail || {};
+  if (d.ancien && filtre === d.ancien) filtre = d.nouveau;
+  if (filtre !== 'Tous' && !TYPES.includes(filtre)) filtre = 'Tous';
+});
 let recherche = '';
 
 const cle = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -30,12 +44,33 @@ export async function initBibliotheque() {
   await rendre();
 }
 
+/* Sélecteur de section en haut de l'écran */
+function selecteurSection() {
+  const g = document.createElement('div');
+  g.className = 'segmente segmente-sections';
+  g.setAttribute('role', 'tablist');
+  g.setAttribute('aria-label', 'Section de la bibliothèque');
+  for (const [id, label] of [['exercices', 'Exercices'], ['types', 'Types de séance']]) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', String(section === id));
+    b.dataset.section = id;
+    b.textContent = label;
+    b.onclick = () => { if (section !== id) { section = id; rendre(); } };
+    g.appendChild(b);
+  }
+  return g;
+}
+
 async function rendre(garderFocus = false) {
+  if (section === 'types') { await rendreTypes(); return; }
   const content = document.getElementById('bibliotheque-content');
   const liste = await listeBibliotheque();
 
   const wrap = document.createElement('div');
   wrap.className = 'view-inner biblio';
+  wrap.appendChild(selecteurSection());
 
   const creer = document.createElement('button');
   creer.type = 'button';
@@ -70,6 +105,7 @@ async function rendre(garderFocus = false) {
     };
     seg.appendChild(b);
   }
+  ajusterSegmente(seg);
   wrap.appendChild(seg);
 
   const compte = document.createElement('p');
@@ -237,4 +273,152 @@ function feuilleExercice(exo) {
     input.focus();
     input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') ok.click(); });
   }
+}
+
+/* ==================== Section Types de séance ==================== */
+
+const svgFleche = (haut) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${haut ? 'm18 15-6-6-6 6' : 'm6 9 6 6 6-6'}"/></svg>`;
+
+async function rendreTypes() {
+  const content = document.getElementById('bibliotheque-content');
+  const types = await listeTypes();
+
+  const wrap = document.createElement('div');
+  wrap.className = 'view-inner biblio';
+  wrap.appendChild(selecteurSection());
+
+  const ajouter = document.createElement('button');
+  ajouter.type = 'button';
+  ajouter.className = 'btn-primary';
+  ajouter.textContent = 'Ajouter un type';
+  ajouter.onclick = () => feuilleType(null);
+  wrap.appendChild(ajouter);
+
+  const note = document.createElement('p');
+  note.className = 'histo-compte';
+  note.textContent = `${types.length} type${types.length > 1 ? 's' : ''} · l'ordre choisi ici est repris partout (choix du type, filtres)`;
+  wrap.appendChild(note);
+
+  const groupe = document.createElement('div');
+  groupe.className = 'histo-groupe';
+  types.forEach((t, i) => groupe.appendChild(ligneType(t, i, types.length)));
+  wrap.appendChild(groupe);
+
+  content.replaceChildren(wrap);
+}
+
+function ligneType(t, i, n) {
+  const row = document.createElement('div');
+  row.className = 'histo-ligne type-ligne';
+
+  const corps = document.createElement('button');
+  corps.type = 'button';
+  corps.className = 'type-ligne-corps';
+  corps.setAttribute('aria-label', `${t.nom}, renommer`);
+  const texte = document.createElement('span');
+  texte.className = 'histo-ligne-texte';
+  const nom = document.createElement('span');
+  nom.className = 'biblio-nom';
+  nom.textContent = t.nom;
+  const meta = document.createElement('span');
+  meta.className = 'histo-metriques';
+  meta.textContent = t.nb ? `${t.nb} séance${t.nb > 1 ? 's' : ''}` : 'aucune séance';
+  texte.append(nom, meta);
+  corps.appendChild(texte);
+  corps.onclick = () => feuilleType(t);
+
+  const fleches = document.createElement('span');
+  fleches.className = 'type-fleches';
+  for (const [sens, haut, lbl] of [[-1, true, 'Monter'], [1, false, 'Descendre']]) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn-icone type-fleche';
+    b.innerHTML = svgFleche(haut);
+    b.setAttribute('aria-label', `${lbl} ${t.nom}`);
+    b.disabled = haut ? i === 0 : i === n - 1;
+    b.onclick = async () => {
+      try { await deplacerType(t.id, sens); await rendreTypes(); } catch (e) { toast(e.message || 'Déplacement impossible'); }
+    };
+    fleches.appendChild(b);
+  }
+
+  row.append(corps, fleches);
+  return row;
+}
+
+/* Feuille d'ajout (type = null) ou de renommage. */
+function feuilleType(type) {
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  const sheet = document.createElement('div');
+  sheet.className = 'sheet';
+  sheet.setAttribute('role', 'dialog');
+  sheet.setAttribute('aria-label', type ? `Renommer ${type.nom}` : 'Ajouter un type de séance');
+
+  const h = document.createElement('h2');
+  h.textContent = type ? 'Renommer le type' : 'Ajouter un type de séance';
+  sheet.appendChild(h);
+
+  if (type) {
+    const p = document.createElement('p');
+    p.className = 'sheet-soustexte';
+    p.textContent = type.nb
+      ? `Le nouveau nom s'applique aussi aux ${type.nb} séance${type.nb > 1 ? 's' : ''} « ${type.nom} » déjà enregistrée${type.nb > 1 ? 's' : ''} et aux exercices rattachés.`
+      : 'Le nouveau nom s\'applique aussi aux exercices rattachés à ce type.';
+    sheet.appendChild(p);
+  } else {
+    const p = document.createElement('p');
+    p.className = 'sheet-soustexte';
+    p.textContent = 'Le type est ajouté en fin de liste. Sa première séance démarrera vide.';
+    sheet.appendChild(p);
+  }
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'recherche-input';
+  input.placeholder = 'Nom du type (ex. Épaules)';
+  input.setAttribute('aria-label', 'Nom du type de séance');
+  input.maxLength = 30;
+  input.value = type ? type.nom : '';
+  sheet.appendChild(input);
+
+  const erreur = document.createElement('p');
+  erreur.className = 'biblio-erreur';
+  erreur.setAttribute('role', 'alert');
+  sheet.appendChild(erreur);
+
+  const ok = document.createElement('button');
+  ok.type = 'button';
+  ok.className = 'btn-primary';
+  ok.textContent = type ? 'Renommer' : 'Ajouter';
+  ok.onclick = async () => {
+    try {
+      if (type) {
+        const r = await renommerType(type.id, input.value);
+        toast(r.ancien === r.nouveau ? 'Nom inchangé' : `« ${r.ancien} » renommé en « ${r.nouveau} »`);
+      } else {
+        const nom = await ajouterType(input.value);
+        toast(`Type « ${nom} » ajouté`);
+      }
+      overlay.remove();
+      await rendreTypes();
+    } catch (e) {
+      erreur.textContent = e.message || 'Enregistrement impossible';
+    }
+  };
+  sheet.appendChild(ok);
+
+  const annuler = document.createElement('button');
+  annuler.type = 'button';
+  annuler.className = 'btn-ghost';
+  annuler.textContent = 'Annuler';
+  annuler.onclick = () => overlay.remove();
+  sheet.appendChild(annuler);
+
+  overlay.appendChild(sheet);
+  overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  input.focus();
+  if (type) input.select();
+  input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') ok.click(); });
 }

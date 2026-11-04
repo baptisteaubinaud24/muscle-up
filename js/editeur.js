@@ -74,7 +74,9 @@ export function monterEditeur(container, seance, options = {}) {
     aide.textContent = modeEdition
       ? 'Correction d\'une séance enregistrée : modifie ce qui doit l\'être, puis enregistre.'
       : 'Les valeurs en gris italique viennent de ta dernière séance : touche-les pour les confirmer ou les modifier.';
-    div.appendChild(aide);
+    // Pas de texte sur les valeurs reprises s'il n'y a rien à confirmer (ex. 1re séance d'un type)
+    const aConfirmer = (seance.exercices || []).some((ex) => (ex.sets || []).some((x) => !x.confirme));
+    if (modeEdition || aConfirmer) div.appendChild(aide);
 
     return div;
   }
@@ -448,4 +450,22 @@ export function demanderConfirmation(titre, sousTexte, libelleBouton, { danger =
     overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); resolve(false); } });
     document.body.appendChild(overlay);
   });
+}
+
+/* Barre de filtres segmentée : jusqu'à 5 boutons, colonnes égales ; au-delà (types de
+   séance ajoutés), la barre défile horizontalement et le bouton actif reste visible. */
+export function ajusterSegmente(g) {
+  const n = g.children.length;
+  if (n > 5) {
+    g.classList.add('segmente-defile');
+    g.style.gridTemplateColumns = '';
+    requestAnimationFrame(() => {
+      const actif = g.querySelector('[aria-selected="true"]');
+      if (actif) g.scrollLeft = Math.max(0, actif.offsetLeft - (g.clientWidth - actif.offsetWidth) / 2);
+    });
+  } else {
+    g.classList.remove('segmente-defile');
+    g.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+  }
+  return g;
 }

@@ -5,6 +5,7 @@
 
 import './vendor/chart.umd.min.js';
 import { listeSeancesTerminees, tonnage, totalReps, kgParRep, TYPES } from './db.js';
+import { ajusterSegmente } from './editeur.js';
 
 const METRIQUES = [
   { id: 'tonnage', label: 'Tonnage', unite: 'kg', calc: tonnage, decimales: 0 },
@@ -17,6 +18,13 @@ let seancesCache = [];
 /* Type et métrique choisis : gardés en mémoire tant que l'app est ouverte.
    À l'ouverture, le type affiché est celui de la dernière séance enregistrée. */
 let etat = { type: null, metrique: 'tonnage' };
+
+/* Un type renommé : le filtre suit le nouveau nom (la liste est redessinée au prochain affichage) */
+document.addEventListener('types-changes', (ev) => {
+  const d = ev.detail || {};
+  if (d.ancien && etat.type === d.ancien) etat.type = d.nouveau;
+  seancesCache.forEach((s) => { if (d.ancien && s.type === d.ancien) s.type = d.nouveau; });
+});
 
 /* ---------- Formatage ---------- */
 
@@ -68,7 +76,7 @@ export async function initEvolution() {
   empty.hidden = true;
 
   // Type par défaut : celui de la dernière séance enregistrée
-  if (!etat.type) etat.type = seancesCache[0].type;
+  if (!etat.type || !TYPES.includes(etat.type)) etat.type = seancesCache[0].type;
 
   rendre();
 }
@@ -115,13 +123,13 @@ function segmente(options, actif, onChoix, label, classe) {
 }
 
 function filtreTypes() {
-  return segmente(
+  return ajusterSegmente(segmente(
     TYPES.map((t) => ({ id: t, label: t })),
     etat.type,
     (t) => { etat.type = t; rendre(); },
     'Type de séance',
     'segmente-types',
-  );
+  ));
 }
 
 function filtreMetriques() {

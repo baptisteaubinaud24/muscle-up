@@ -18,6 +18,13 @@ let seance = null;          // séance en cours (référence Dexie)
 let modeCreation = false;    // écran de choix du type affiché
 let timerSauvegarde = null;
 
+/* Un type renommé pendant une séance en cours : la base est déjà à jour, la copie en
+   mémoire doit suivre (sinon la prochaine sauvegarde réécrirait l'ancien nom). */
+document.addEventListener('types-changes', (ev) => {
+  const d = ev.detail || {};
+  if (d.ancien && seance && seance.type === d.ancien) seance.type = d.nouveau;
+});
+
 /* ---------- Cycle de vie ---------- */
 
 export async function initSeance() {

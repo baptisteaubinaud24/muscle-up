@@ -5,7 +5,10 @@
 
    Règles :
    - format attendu : { format: 'suivi-muscu', version: 1, seances: [...] } ;
-   - chaque séance est validée (date AAAA-MM-JJ, type connu, exercices + sets numériques) ;
+   - chaque séance est validée (date AAAA-MM-JJ, type non vide, exercices + sets numériques) ;
+   - un type inconnu de l'app (absent de la liste des types) est créé à l'import, après
+     confirmation ; les sauvegardes contiennent aussi la liste ordonnée des types (champ
+     `types`, facultatif : les anciens fichiers restent importables) ;
    - un set sans reps est ignoré, un exercice sans set aussi, une séance sans rep aussi ;
    - doublons : une séance dont la date ET le type existent déjà est ignorée (jamais écrasée). */
 
@@ -13,6 +16,7 @@ import {
   TYPES, ajouterSeances, toutesLesSeances, sauverSeance,
   listeSeancesTerminees, lireReglage, ecrireReglage, aujourdhui,
   ajouterExercicesManquants, exercicesPourExport, cleExercice, listeBibliotheque,
+  typeConnu, nomPropre, ajouterTypesManquants,
 } from './db.js';
 import { demanderConfirmation } from './editeur.js';
 
@@ -70,7 +74,9 @@ function nombre(v) {
 function normaliser(s) {
   if (!s || typeof s !== 'object') return null;
   if (typeof s.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s.date)) return null;
-  if (!TYPES.includes(s.type)) return null;
+  if (typeof s.type !== 'string' || !cleExercice(s.type) || cleExercice(s.type) === 'tous') return null;
+  // Type existant (majuscules/accents ignorés) ou nouveau type à créer
+  const type = typeConnu(s.type) || nomPropre(s.type);
   if (!Array.isArray(s.exercices)) return null;
   const exercices = [];
   for (const e of s.exercices) {
@@ -86,7 +92,7 @@ function normaliser(s) {
     if (sets.length) exercices.push({ nom: nomFusionne(nom), sets });
   }
   if (!exercices.length) return null;
-  return { date: s.date, type: s.type, statut: 'terminee', exercices };
+  return { date: s.date, type, statut: 'terminee', exercices };
 }
 
 /* Analyse le contenu d'un fichier. Exporté pour les tests. */
@@ -116,7 +122,17 @@ export async function analyserImport(texte) {
     .filter((e) => e && typeof e.nom === 'string')
     .map((e) => ({ nom: nomFusionne(e.nom.trim().replace(/\s+/g, ' ')), types: e.types }))
     .filter((e) => { const k = cleExercice(e.nom); if (!k || connus.has(k)) return false; connus.add(k); return true; });
-  return { nouvelles, doublons, invalides, exercices };
+  // Types à créer : d'abord ceux de la liste du fichier (dans son ordre), puis ceux des séances
+  const typesNouveaux = [];
+  const vusTypes = new Set();
+  const listeFichier = Array.isArray(json?.types) ? json.types.filter((t) => typeof t === 'string') : [];
+  for (const t of [...listeFichier, ...nouvelles.map((x) => x.type)]) {
+    const k = cleExercice(t);
+    if (!k || k === 'tous' || typeConnu(t) || vusTypes.has(k)) continue;
+    vusTypes.add(k);
+    typesNouveaux.push(nomPropre(t));
+  }
+  return { nouvelles, doublons, invalides, exercices, typesNouveaux };
 }
 
 /* Parcours complet : sélection du fichier, aperçu, confirmation, écriture.
@@ -124,7 +140,7 @@ export async function analyserImport(texte) {
 export async function importerDepuisFichier() {
   const fichier = await choisirFichier();
   if (!fichier) return 0;
-  const { nouvelles, doublons, invalides, exercices } = await analyserImport(await fichier.text());
+  const { nouvelles, doublons, invalides, exercices, typesNouveaux } = await analyserImport(await fichier.text());
 
   const ignorees = [];
   if (doublons) ignorees.push(`${doublons} déjà présente${doublons > 1 ? 's' : ''}`);
@@ -132,27 +148,34 @@ export async function importerDepuisFichier() {
   const suffixe = ignorees.length ? ` Ignorées : ${ignorees.join(', ')}.` : '';
 
   const txtExos = exercices.length ? ` + ${exercices.length} exercice${exercices.length > 1 ? 's' : ''} de bibliothèque.` : '';
-  if (!nouvelles.length && !exercices.length) throw new Error(`Rien à importer.${suffixe}`);
+  const nT = typesNouveaux.length;
+  const txtTypes = nT ? ` Nouveau${nT > 1 ? 'x' : ''} type${nT > 1 ? 's' : ''} de séance créé${nT > 1 ? 's' : ''} : ${typesNouveaux.join(', ')}.` : '';
+  if (!nouvelles.length && !exercices.length && !nT) throw new Error(`Rien à importer.${suffixe}`);
   if (!nouvelles.length) {
+    const titre = exercices.length
+      ? `Importer ${exercices.length} exercice${exercices.length > 1 ? 's' : ''}`
+      : `Importer ${nT} type${nT > 1 ? 's' : ''} de séance`;
     const okExos = await demanderConfirmation(
-      `Importer ${exercices.length} exercice${exercices.length > 1 ? 's' : ''}`,
-      `Aucune nouvelle séance.${suffixe} Exercices ajoutés à la bibliothèque : ${exercices.map((e) => e.nom).join(', ')}.`,
+      titre,
+      `Aucune nouvelle séance.${suffixe}${exercices.length ? ` Exercices ajoutés à la bibliothèque : ${exercices.map((e) => e.nom).join(', ')}.` : ''}${txtTypes}`,
       'Importer',
     );
     if (!okExos) return 0;
+    await ajouterTypesManquants(typesNouveaux);
     await ajouterExercicesManquants(exercices);
     document.dispatchEvent(new CustomEvent('donnees-changees'));
     return 0;
   }
 
-  const parType = TYPES.map((t) => [t, nouvelles.filter((s) => s.type === t).length])
+  const parType = [...TYPES, ...typesNouveaux].map((t) => [t, nouvelles.filter((s) => s.type === t).length])
     .filter(([, n]) => n > 0).map(([t, n]) => `${t} ${n}`).join(', ');
   const ok = await demanderConfirmation(
     `Importer ${nouvelles.length} séance${nouvelles.length > 1 ? 's' : ''}`,
-    `Du ${fmtDate(nouvelles[0].date)} au ${fmtDate(nouvelles[nouvelles.length - 1].date)} — ${parType}.${suffixe}${txtExos}`,
+    `Du ${fmtDate(nouvelles[0].date)} au ${fmtDate(nouvelles[nouvelles.length - 1].date)} — ${parType}.${suffixe}${txtExos}${txtTypes}`,
     'Importer',
   );
   if (!ok) return 0;
+  await ajouterTypesManquants(typesNouveaux); // avant les séances et les exercices qui les citent
   await ajouterSeances(nouvelles);
   if (exercices.length) await ajouterExercicesManquants(exercices);
   return nouvelles.length;
@@ -178,6 +201,7 @@ async function construireFichier() {
     source: 'sauvegarde',
     genere_le: aujourdhui(),
     seances,
+    types: [...TYPES], // types de séance, dans l'ordre choisi
     exercices: await exercicesPourExport(), // bibliothèque (noms + types)
   };
   const nom = `sauvegarde-suivi-muscu-${aujourdhui()}.json`;

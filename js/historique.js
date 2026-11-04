@@ -13,7 +13,7 @@ import {
   kgParRep,
   TYPES,
 } from './db.js';
-import { monterEditeur, demanderConfirmation } from './editeur.js';
+import { monterEditeur, demanderConfirmation, ajusterSegmente } from './editeur.js';
 import {
   importerDepuisFichier,
   exporterSauvegarde,
@@ -24,6 +24,15 @@ import {
 let filtre = 'Tous';
 /* Édition en cours : { copie, modifie }. Conservée si on change d'onglet. */
 let edition = null;
+
+/* Un type renommé : le filtre suit, et la séance en cours de correction aussi
+   (sinon « Enregistrer » réécrirait l'ancien nom). */
+document.addEventListener('types-changes', (ev) => {
+  const d = ev.detail || {};
+  if (!d.ancien) return;
+  if (filtre === d.ancien) filtre = d.nouveau;
+  if (edition && edition.copie.type === d.ancien) edition.copie.type = d.nouveau;
+});
 
 function notifierDonneesChangees() {
   document.dispatchEvent(new CustomEvent('donnees-changees'));
@@ -198,7 +207,7 @@ function filtres(seances) {
     b.onclick = () => { filtre = t; rendreListe(); };
     g.appendChild(b);
   }
-  return g;
+  return ajusterSegmente(g);
 }
 
 function ligneSeance(s) {
