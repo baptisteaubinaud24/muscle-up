@@ -6,6 +6,7 @@ import {
   getSeanceEnCours,
   derniereSeanceTerminee,
   sauverSeance,
+  supprimerSeance,
   tonnage,
   totalReps,
   TYPES,
@@ -72,6 +73,12 @@ function rendre() {
       terminer.textContent = 'Terminer la séance';
       terminer.onclick = terminerSeance;
       frag.appendChild(terminer);
+
+      const abandonner = document.createElement('button');
+      abandonner.className = 'btn-ghost btn-ghost-danger btn-abandonner';
+      abandonner.textContent = 'Abandonner la séance';
+      abandonner.onclick = abandonnerSeance;
+      frag.appendChild(abandonner);
     },
   });
 }
@@ -155,6 +162,29 @@ async function terminerSeance() {
   seance = null;
   notifierDonneesChangees();
   rendre();
+}
+
+/* Abandon : la séance en cours est supprimée (rien n'est enregistré dans l'historique).
+   Les exercices créés pendant la séance restent dans la bibliothèque. */
+async function abandonnerSeance() {
+  const ok = await demanderConfirmation(
+    'Abandonner la séance ?',
+    `La séance ${seance.type} en cours sera supprimée sans être enregistrée. Cette action est définitive.`,
+    'Abandonner',
+    { danger: true },
+  );
+  if (!ok) return;
+  clearTimeout(timerSauvegarde);
+  if (seance.id !== undefined) await supprimerSeance(seance.id);
+  seance = null;
+  notifierDonneesChangees();
+  rendre();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.setAttribute('role', 'status');
+  t.textContent = 'Séance abandonnée';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2400);
 }
 
 /* ---------- Divers ---------- */

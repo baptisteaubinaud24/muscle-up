@@ -1060,3 +1060,10 @@ button {
   color: var(--color-text-muted);
   white-space: nowrap;
 }
+
+/* Abandon d'une séance en cours */
+.btn-abandonner {
+  width: 100%;
+  margin-top: var(--space-1);
+  font-weight: 600;
+}
