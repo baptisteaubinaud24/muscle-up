@@ -1,0 +1,911 @@
+/* Suivi Muscu — feuille de style principale */
+
+/* ---------- Tokens ---------- */
+:root {
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-full: 9999px;
+
+  --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+[data-theme='dark'] {
+  --color-bg: #0f1012;
+  --color-surface: #17181b;
+  --color-surface-2: #1e2024;
+  --color-border: #2a2d33;
+  --color-divider: #232529;
+  --color-text: #eceded;
+  --color-text-muted: #9ba0a6;
+  --color-accent: #c6f24e;
+  --color-accent-text: #0f1012;
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme='light'] {
+  --color-bg: #f4f4f2;
+  --color-surface: #fbfbfa;
+  --color-surface-2: #ffffff;
+  --color-border: #dcdedd;
+  --color-divider: #e7e8e6;
+  --color-text: #1b1c1e;
+  --color-text-muted: #6e7276;
+  --color-accent: #4a7a10;
+  --color-accent-text: #ffffff;
+  --shadow-card: 0 4px 12px rgba(20, 24, 20, 0.08);
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100dvh;
+  line-height: 1.55;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  font-size: var(--text-base);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* L'attribut hidden doit toujours masquer, même avec display:flex */
+[hidden] {
+  display: none !important;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- En-tête ---------- */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(var(--space-4) + var(--safe-top)) var(--space-4) var(--space-4);
+  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.app-header h1 {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+  transition: color var(--transition), background var(--transition);
+}
+
+.icon-btn:active {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+/* ---------- Vues ---------- */
+#views {
+  flex: 1;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4) calc(var(--space-16) + var(--safe-bottom));
+}
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  animation: view-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes view-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-16) var(--space-6);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-base);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+/* ---------- Boutons ---------- */
+.btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  font-size: var(--text-base);
+  font-weight: 600;
+  transition: transform var(--transition), opacity var(--transition);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-new {
+  position: sticky;
+  bottom: calc(var(--space-4) + var(--safe-bottom));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* ---------- Cartes & info ---------- */
+.carte-en-cours {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+
+.carte-titre {
+  font-weight: 600;
+}
+
+.carte-sous-titre {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  margin-top: var(--space-1);
+}
+
+.info {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+  padding: var(--space-4);
+}
+
+/* ---------- Barre d'onglets ---------- */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: var(--space-2) var(--space-2) calc(var(--space-2) + var(--safe-bottom));
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--color-divider);
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  transition: color var(--transition);
+}
+
+.tab[aria-selected='true'] {
+  color: var(--color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ==================== Jalon 2 — Écran Séance ==================== */
+
+.view-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.view-inner h2 {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+/* ----- Choix du type ----- */
+.type-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.type-btn {
+  padding: var(--space-8) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--text-base);
+  font-weight: 600;
+  box-shadow: var(--shadow-card);
+  transition: border-color var(--transition), transform var(--transition);
+}
+
+.type-btn:active {
+  transform: scale(0.97);
+  border-color: var(--color-accent);
+}
+
+/* ----- En-tête de séance ----- */
+.seance-entete {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.seance-entete-haut {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.seance-type {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.seance-date {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+}
+
+.seance-metrics {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.seance-aide {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.banniere-prerempli {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  animation: view-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ----- Cartes d'exercice ----- */
+.exos-liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.exo-card {
+  padding: var(--space-3) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.exo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.exo-nom {
+  font-weight: 600;
+  font-size: var(--text-base);
+}
+
+.exo-outils {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.exo-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  transition: background var(--transition), color var(--transition);
+}
+
+.exo-btn:active {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.exo-btn:disabled {
+  opacity: 0.3;
+}
+
+/* ----- Lignes de set ----- */
+.exo-sets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+
+.set-row.prefill .num-input {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.set-row.prefill .set-label {
+  color: var(--color-text-faint, var(--color-text-muted));
+  opacity: 0.7;
+}
+
+.set-label {
+  min-width: 1.25rem;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* .set-del supprimé : la suppression d un set passe par la puce « − set » */
+  border-radius: var(--radius-sm);
+  color: var(--color-text-faint, var(--color-text-muted));
+  font-size: var(--text-xs);
+  margin-left: auto;
+}
+
+.set-del:active {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.num-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.num-group.num-charge {
+  margin-left: auto;
+}
+
+.stepper {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  flex: none;
+  transition: transform var(--transition), border-color var(--transition);
+}
+
+.stepper:active {
+  transform: scale(0.92);
+  border-color: var(--color-accent);
+}
+
+.num-input {
+  width: 3rem;
+  height: 36px;
+  flex: none;
+  text-align: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--text-base);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.num-input::placeholder {
+  color: var(--color-text-faint, var(--color-text-muted));
+}
+
+/* ----- Actions bas de carte ----- */
+.exo-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.btn-chip {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.btn-chip:active {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}
+
+/* ----- Boutons secondaires / ghost ----- */
+.btn-secondary {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-base);
+  font-weight: 600;
+  transition: transform var(--transition), border-color var(--transition);
+}
+
+.btn-secondary:active {
+  transform: scale(0.98);
+  border-color: var(--color-accent);
+}
+
+.btn-ghost {
+  padding: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.btn-terminer {
+  margin-top: var(--space-2);
+}
+
+/* ----- Overlay & feuilles modales ----- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: view-in 180ms ease;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 640px;
+  max-height: 82dvh;
+  overflow-y: auto;
+  padding: var(--space-6) var(--space-5) calc(var(--space-6) + var(--safe-bottom));
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sheet h2 {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.sheet-soustexte {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.recherche-input {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--text-base);
+}
+
+.biblio-liste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 46dvh;
+  overflow-y: auto;
+}
+
+.biblio-item {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--text-base);
+  text-align: left;
+}
+
+.biblio-item:active {
+  border-color: var(--color-accent);
+}
+
+.biblio-nouveau {
+  border-style: dashed;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* Indication d'unité sur le groupe charge */
+.num-group.num-charge::after {
+  content: 'kg';
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-left: 2px;
+}
+
+.btn-chip:disabled {
+  opacity: 0.4;
+}
+
+/* ==================== Jalon 3 — Écran Évolution ==================== */
+
+.segmente {
+  display: grid;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.segmente-types { grid-template-columns: repeat(4, 1fr); }
+.segmente-metriques { grid-template-columns: repeat(3, 1fr); }
+
+.segmente button {
+  min-height: 40px;
+  padding: var(--space-2) var(--space-1);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-text-muted);
+  transition: background var(--transition), color var(--transition);
+}
+
+.segmente-metriques button { font-size: var(--text-xs); min-height: 34px; }
+
+.segmente button[aria-selected='true'] {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.evo-resume {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+.evo-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.evo-stat-titre {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.evo-stat-valeur {
+  font-size: var(--text-base);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.evo-stat-detail {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.evo-stat-detail.hausse { color: var(--color-accent); }
+.evo-stat-detail.baisse { color: #e5735c; }
+[data-theme='light'] .evo-stat-detail.baisse { color: #b3402a; }
+
+.evo-graphique {
+  position: relative;
+  height: 280px;
+  padding: var(--space-3) var(--space-2) var(--space-2);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+
+.evo-liste {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.evo-liste h3 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.evo-ligne {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.evo-ligne:last-child { border-bottom: none; }
+
+.evo-ligne-date {
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.evo-ligne-date::first-letter { text-transform: uppercase; }
+
+.evo-ligne-valeur {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.evo-vide {
+  padding: var(--space-10) var(--space-4);
+  text-align: center;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+/* ==================== Jalon 4 — Écran Historique ==================== */
+
+.segmente-histo { grid-template-columns: repeat(5, 1fr); }
+.segmente-histo button { font-size: var(--text-xs); padding: var(--space-2) 2px; }
+
+.histo-compte {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.histo-mois {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: none;
+  margin-top: var(--space-2);
+}
+
+.histo-groupe {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.histo-ligne {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--color-divider);
+  transition: background var(--transition);
+}
+
+.histo-ligne:last-child { border-bottom: none; }
+.histo-ligne:active { background: var(--color-surface-2); }
+
+.histo-ligne-texte {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.histo-ligne-haut {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.histo-type {
+  font-weight: 700;
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+
+.histo-date {
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.histo-metriques {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.histo-chevron {
+  color: var(--color-text-muted);
+  display: grid;
+  place-items: center;
+}
+
+.histo-barre {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.histo-retour {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 40px;
+  padding: var(--space-2) var(--space-2) var(--space-2) 0;
+  color: var(--color-accent);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.histo-etat {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.btn-danger {
+  background: #c8432b;
+  color: #fff;
+}
+
+.btn-ghost-danger {
+  color: #e5735c;
+}
+
+[data-theme='light'] .btn-ghost-danger { color: #b3402a; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(84px + var(--safe-bottom));
+  transform: translateX(-50%);
+  z-index: 45; /* sous les feuilles modales */
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-text);
+  color: var(--color-bg);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  box-shadow: var(--shadow-card);
+  animation: view-in 200ms ease;
+  white-space: nowrap;
+}

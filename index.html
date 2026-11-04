@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Suivi Muscu" />
+  <meta name="theme-color" content="#0f1012" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <title>Suivi Muscu</title>
+</head>
+<body>
+  <header class="app-header">
+    <h1>Suivi Muscu</h1>
+    <button class="icon-btn" data-theme-toggle aria-label="Basculer le thème">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </header>
+
+  <main id="views">
+    <!-- Écran Séance -->
+    <section class="view" data-view="seance" hidden>
+      <div class="empty-state" id="seance-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+          <path d="M6.5 6.5v11M17.5 6.5v11M4 9v6M20 9v6M6.5 12h11"/>
+        </svg>
+        <p>Aucune séance en cours</p>
+      </div>
+      <div id="seance-content"></div>
+      <button class="btn-primary btn-new" data-action="nouvelle-seance">Nouvelle séance</button>
+    </section>
+
+    <!-- Écran Évolution -->
+    <section class="view" data-view="evolution" hidden>
+      <div class="empty-state" id="evolution-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/>
+        </svg>
+        <p>Pas encore de données à afficher.<br />Termine ta première séance pour voir ton évolution.</p>
+      </div>
+      <div id="evolution-content"></div>
+    </section>
+
+    <!-- Écran Historique -->
+    <section class="view" data-view="historique" hidden>
+      <div class="empty-state" id="historique-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+        </svg>
+        <p>Aucune séance enregistrée pour l'instant.</p>
+      </div>
+      <div id="historique-content"></div>
+    </section>
+  </main>
+
+  <nav class="tab-bar" role="tablist" aria-label="Navigation">
+    <button class="tab" role="tab" data-tab="seance" aria-selected="false">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M4 9v6M20 9v6M6.5 12h11"/></svg>
+      <span>Séance</span>
+    </button>
+    <button class="tab" role="tab" data-tab="evolution" aria-selected="false">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+      <span>Évolution</span>
+    </button>
+    <button class="tab" role="tab" data-tab="historique" aria-selected="false">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span>Historique</span>
+    </button>
+  </nav>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
